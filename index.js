@@ -92,37 +92,103 @@ function fillCellByPosition(row, col) {
 }
 
 const SPEED = 1000;
+
 /**
  * Animates a cell to the bottom of the grid.
  *
  * @param {number} row - The row index of the cell.
  * @param {number} col - The column index of the cell.
- * @param {fabric.Rect} cell - The cell to animate.
+ * @param {fabric.Rect} sand - The sand to animate.
  */
-function animateCellToBottom(row, col, cell) {
-  // find the last cell in the column
-  let lastIndex = GRID.ROWS - 1;
+function animateCellToBottom(row, col, sand) {
+  animate(sand, row, col);
+}
 
-  let found = false;
-  GRID_ARRAY.map((row, i) => {
-    if (found) return;
-
-    if (row[col] === 1) {
-      found = true;
-      lastIndex = Math.max(i - 1, 0);
+/**
+ * Animates a sand to the bottom of the grid.
+ *
+ * @param {fabric.Rect} sand - The sand to animate.
+ * @param {number} row - The row index of the sand.
+ * @param {number} col - The column index of the sand.
+ * @param {number} top - The top position of the sand.
+ * @param {number} left - The left position of the sand.
+ */
+function animate(sand, row, col) {
+  function getPoints(row, col) {
+    if (row === GRID.ROWS - 1) {
+      GRID_ARRAY[row][col] = 1;
+      return;
     }
-  });
 
-  // update the grid array
-  GRID_ARRAY[lastIndex][col] = 1;
+    let newCol = col;
 
-  const lastRowTop = lastIndex * GRID.SIZE + GRID.TOP;
+    if (GRID_ARRAY[row + 1][col] === 1) {
+      const belowRight = GRID_ARRAY[row + 1][col + 1];
+      const belowLeft = GRID_ARRAY[row + 1][col - 1];
 
-  cell.animate("top", lastRowTop, {
-    duration: SPEED,
-    onChange: canvas.renderAll.bind(canvas),
-    onComplete: function () {},
-  });
+      if (belowRight === 0 && belowLeft === 0) {
+        const randomRightOrLeft = Math.random() > 0.5 ? 1 : -1;
+        newCol = col + randomRightOrLeft;
+      } else if (belowRight === 0) newCol = col + 1;
+      else if (belowLeft === 0) newCol = col - 1;
+    }
+
+    let newRow = row;
+
+    let _found = false;
+    GRID_ARRAY.map((row, i) => {
+      if (_found) return;
+
+      if (row[newCol] === 1) {
+        _found = true;
+        newRow = Math.max(i - 1, 0);
+      }
+    });
+
+    if (!_found) newRow = GRID.ROWS - 1;
+
+    if (newRow === row && newCol === col) {
+      GRID_ARRAY[newRow][newCol] = 1;
+      return;
+    }
+
+    const newTop = newRow * GRID.SIZE + GRID.TOP;
+    const newLeft = newCol * GRID.SIZE + GRID.LEFT;
+
+    return { newRow, newCol, newTop, newLeft };
+  }
+
+  const data = [];
+  let points = getPoints(row, col);
+  while (points) {
+    const { newRow, newCol, newTop, newLeft } = points;
+    data.push({ top: newTop, left: newLeft });
+
+    points = getPoints(newRow, newCol);
+  }
+
+  function animateTopLeft(top, left) {
+    const speed = sand.left - left === 0 ? SPEED : SPEED * 0.4;
+    sand.animate(
+      {
+        top,
+        left,
+      },
+      {
+        duration: speed,
+        onChange: canvas.renderAll.bind(canvas),
+        onComplete: function () {
+          if (data.length) {
+            const point = data.shift();
+            animateTopLeft(point.top, point.left);
+          }
+        },
+      }
+    );
+  }
+
+  const point = data.shift();
+  if (point) animateTopLeft(point.top, point.left);
 }
 
 function handleMouseEvents() {
