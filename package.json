@@ -1,8 +1,7 @@
 {
   "name": "fabric-canvas",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Falling sand cellular automata simulation using fabric.js",
   "scripts": {
     "start": "parcel ./*.html",
     "build": "parcel build ./*.html"
