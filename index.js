@@ -1,6 +1,6 @@
 import { fabric } from "fabric";
-import sandImg from "./assets/sand.png";
-import bgImg from "./assets/bg.webp";
+import sandImg from "./public/assets/sand.png";
+import bgImg from "./public/assets/bg.webp";
 
 const canvas = new fabric.Canvas("canvas", {
   width: 1000,
