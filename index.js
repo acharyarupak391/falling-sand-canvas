@@ -1,26 +1,42 @@
 import { fabric } from "fabric";
+import sandImg from "./assets/sand.png";
+import bgImg from "./assets/bg.webp";
 
 const canvas = new fabric.Canvas("canvas", {
   width: 1000,
-  height: 500,
+  height: 700,
   backgroundColor: "#eee",
   isDrawingMode: false,
   selection: false,
 });
 
+// set background image to the canvas
+fabric.Image.fromURL(bgImg, function (bg) {
+  bg.set({
+    width: canvas.width,
+    height: canvas.height,
+    selectable: false,
+    filters: [new fabric.Image.filters.Brightness({ brightness: 0.5 })],
+  });
+
+  canvas.setBackgroundImage(bg, canvas.renderAll.bind(canvas));
+});
+
 const GRID = {
-  ROWS: 20,
-  COLS: 40,
+  ROWS: 35, // height
+  COLS: 50, // width
   SIZE: 20,
-  LEFT: 50,
-  TOP: 50,
+  LEFT: 0,
+  TOP: 0,
 };
+const { SIZE, LEFT, TOP, ROWS, COLS } = GRID;
+const OFFSET = SIZE / 2;
 
 const GRID_ARRAY = [];
 
 function initializeGridArray() {
-  Array.from({ length: GRID.ROWS }, (_, i) => {
-    Array.from({ length: GRID.COLS }, (_, j) => {
+  Array.from({ length: ROWS }, (_, i) => {
+    Array.from({ length: COLS }, (_, j) => {
       if (!GRID_ARRAY[i]) GRID_ARRAY[i] = [];
       GRID_ARRAY[i][j] = 0;
     });
@@ -34,8 +50,6 @@ function drawGrid() {
     subTargetCheck: true,
   });
 
-  const { ROWS, COLS, SIZE, LEFT, TOP } = GRID;
-
   for (let i = 0; i < ROWS; i++) {
     for (let j = 0; j < COLS; j++) {
       const left = j * SIZE + LEFT;
@@ -44,11 +58,12 @@ function drawGrid() {
       const rect = new fabric.Rect({
         left,
         top,
+        // sand background color light yellow + dirt color
         fill: "transparent",
         width: SIZE,
         height: SIZE,
         selectable: false,
-        stroke: "black",
+        stroke: "transparent",
         strokeWidth: 1,
       });
       grid.addWithUpdate(rect);
@@ -61,7 +76,6 @@ drawGrid();
 
 // function to get the grid cell position based on the mouse click position
 function getGridCellPosition(x, y) {
-  const { SIZE, LEFT, TOP } = GRID;
   const col = Math.floor((x - LEFT) / SIZE);
   const row = Math.floor((y - TOP) / SIZE);
 
@@ -73,36 +87,28 @@ function getGridCellPosition(x, y) {
 function fillCellByPosition(row, col) {
   if (GRID_ARRAY[row][col] === 1) return;
 
-  const { SIZE, LEFT, TOP } = GRID;
-  const left = col * SIZE + LEFT;
-  const top = row * SIZE + TOP;
+  const left = col * SIZE + LEFT + OFFSET;
+  const top = row * SIZE + TOP + OFFSET;
 
-  const rect = new fabric.Rect({
-    left,
-    top,
-    fill: "red",
-    stroke: "black",
-    width: SIZE,
-    height: SIZE,
-    selectable: false,
+  fabric.Image.fromURL(sandImg, function (sand) {
+    sand.set({
+      left,
+      top,
+      selectable: false,
+      originX: "center",
+      originY: "center",
+    });
+
+    sand.scaleToHeight(SIZE);
+    sand.scaleToWidth(SIZE);
+
+    canvas.add(sand);
+
+    animate(sand, row, col);
   });
-  canvas.add(rect);
-
-  animateCellToBottom(row, col, rect);
 }
 
 const SPEED = 1000;
-
-/**
- * Animates a cell to the bottom of the grid.
- *
- * @param {number} row - The row index of the cell.
- * @param {number} col - The column index of the cell.
- * @param {fabric.Rect} sand - The sand to animate.
- */
-function animateCellToBottom(row, col, sand) {
-  animate(sand, row, col);
-}
 
 /**
  * Animates a sand to the bottom of the grid.
@@ -115,7 +121,7 @@ function animateCellToBottom(row, col, sand) {
  */
 function animate(sand, row, col) {
   function getPoints(row, col) {
-    if (row === GRID.ROWS - 1) {
+    if (row === ROWS - 1) {
       GRID_ARRAY[row][col] = 1;
       return;
     }
@@ -145,15 +151,15 @@ function animate(sand, row, col) {
       }
     });
 
-    if (!_found) newRow = GRID.ROWS - 1;
+    if (!_found) newRow = ROWS - 1;
 
     if (newRow === row && newCol === col) {
       GRID_ARRAY[newRow][newCol] = 1;
       return;
     }
 
-    const newTop = newRow * GRID.SIZE + GRID.TOP;
-    const newLeft = newCol * GRID.SIZE + GRID.LEFT;
+    const newTop = newRow * SIZE + TOP + OFFSET;
+    const newLeft = newCol * SIZE + LEFT + OFFSET;
 
     return { newRow, newCol, newTop, newLeft };
   }
@@ -168,11 +174,14 @@ function animate(sand, row, col) {
   }
 
   function animateTopLeft(top, left) {
-    const speed = sand.left - left === 0 ? SPEED : SPEED * 0.4;
+    const isMovingSideways = sand.left - left !== 0;
+    const speed = !isMovingSideways ? SPEED : SPEED * 0.45;
+
     sand.animate(
       {
         top,
         left,
+        angle: isMovingSideways ? sand.angle + 90 : sand.angle,
       },
       {
         duration: speed,
